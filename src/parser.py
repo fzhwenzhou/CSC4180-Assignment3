@@ -192,7 +192,7 @@ class Parser:
 
 
 if len(argv) != 4:
-    print('Usage: python3 yacc.py <grammar file> <input file> <output png file>')
+    print('Usage: python3 parser.py <grammar file> <input file> <output png file>')
     exit(1)
 
 with open(argv[1], 'r') as f:
