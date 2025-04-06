@@ -78,13 +78,26 @@ class Parser:
         self.compute_nullable()
         self.compute_first()
         self.compute_follow()
-        self.compute_table()     
+        self.compute_table() 
+            
+    
+    def compute_nullable(self):
+        changed = True
+        while changed:
+            changed = False
+            for non_terminal in self.productions:
+                for production in self.productions[non_terminal]:
+                    if all(symbol in self.nullable for symbol in production):
+                        if non_terminal not in self.nullable:
+                            self.nullable.add(non_terminal)
+                            changed = True
+                            
     
     def compute_first(self):
         changed = True
         while changed:
             changed = False
-            for non_terminal in self.productions.keys():
+            for non_terminal in self.productions:
                 if non_terminal not in self.first:
                     self.first[non_terminal] = set()
                 original_first = self.first[non_terminal].copy()
@@ -126,17 +139,6 @@ class Parser:
                         else:
                             trailer = {symbol}
                             
-            
-    def compute_nullable(self):
-        changed = True
-        while changed:
-            changed = False
-            for non_terminal in self.productions:
-                for production in self.productions[non_terminal]:
-                    if all(symbol in self.nullable for symbol in production):
-                        if non_terminal not in self.nullable:
-                            self.nullable.add(non_terminal)
-                            changed = True
     
     def compute_table(self):
         for non_terminal, productions in self.productions.items():
