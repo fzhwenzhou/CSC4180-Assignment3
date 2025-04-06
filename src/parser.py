@@ -48,7 +48,7 @@ class Parser:
         self.first = {}
         self.follow = {}
         self.terminals = set()
-        self.nullable = []
+        self.nullable = set()
         self.productions = {}
         self.table = {}
         grammar = grammar.split('\n')
@@ -60,7 +60,7 @@ class Parser:
             left, right = line.split('::=')
             left, right = f'<{left.strip()}>', right.strip()
             right = right.split() if right != '\'\'' else []
-            right = list(map(lambda x: tokens.get(x, f'<{x}>'), right))
+            right = [tokens.get(x, f'<{x}>') for x in right]
             if not self.start:
                 self.start = left
             if left not in self.productions:
@@ -78,22 +78,7 @@ class Parser:
         self.compute_nullable()
         self.compute_first()
         self.compute_follow()
-        self.compute_table()
-    
-    # Helper function
-    def first_of_sequence(self, symbols):
-        first = set()
-        for symbol in symbols:
-            if symbol in self.terminals:
-                first.add(symbol)
-                break
-            else:
-                first.update(self.first[symbol] - {'ε'})
-                if symbol not in self.nullable:
-                    break
-        else:
-            first.add('ε')
-        return first        
+        self.compute_table()     
     
     def compute_first(self):
         changed = True
@@ -106,9 +91,7 @@ class Parser:
                 for production in self.productions[non_terminal]:
                     first = set()
                     for symbol in production:
-                        if symbol == '':
-                            pass
-                        elif symbol in self.terminals:
+                        if symbol in self.terminals:
                             first.add(symbol)
                             break
                         else:
@@ -137,41 +120,47 @@ class Parser:
                             if self.follow[symbol] != original_follow:
                                 changed = True
                             if symbol in self.nullable:
-                                trailer.update(self.first.get(symbol, set()) - {'ε'})
+                                trailer.update(self.first.get(symbol, set()))
                             else:
-                                trailer = self.first.get(symbol, set()) - {'ε'}
+                                trailer = self.first.get(symbol, set())
                         else:
                             trailer = {symbol}
                             
             
     def compute_nullable(self):
-        self.nullable = []
         changed = True
         while changed:
             changed = False
             for non_terminal in self.productions:
                 for production in self.productions[non_terminal]:
-                    if all(symbol in self.nullable or symbol == 'ε' for symbol in production):
+                    if all(symbol in self.nullable for symbol in production):
                         if non_terminal not in self.nullable:
-                            self.nullable.append(non_terminal)
+                            self.nullable.add(non_terminal)
                             changed = True
     
     def compute_table(self):
         for non_terminal, productions in self.productions.items():
             for production in productions:
-                first_production = self.first_of_sequence(production)
-                for i in first_production - {'ε'}:
+                first = set()
+                nullable = False
+                for symbol in production:
+                    if symbol in self.terminals:
+                        first.add(symbol)
+                        break
+                    else:
+                        first.update(self.first[symbol])
+                        if symbol not in self.nullable:
+                            break
+                else:
+                    nullable = True
+                for i in first:
                     self.table[(non_terminal, i)] = production
-                if 'ε' in first_production:
+                if nullable:
                     for i in self.follow[non_terminal]:
                         self.table[(non_terminal, i)] = production
         
     
     def parse(self, file):
-        '''
-        Parse the inputs
-        The result will be represented as a list of lists
-        '''
         inputs = [tok[0] for tok in Scanner().scan(file)] + ['$']
         stack = [self.start]
         parse_tree = [self.start]
@@ -195,9 +184,8 @@ class Parser:
                 subtree = [symbol] + production
                 current_node[current_idx] = subtree
                 for i, p in reversed(list(enumerate(production))):
-                    if p != 'ε':
-                        stack.append(p)
-                        tree_stack.append((subtree, i + 1))
+                    stack.append(p)
+                    tree_stack.append((subtree, i + 1))
                 
         
         return parse_tree[0]     
